@@ -142,7 +142,7 @@ To find the type and address for the Kafka bootstrap route run the following com
 +
 [source,bash]
 ----
-oc get eventstreams dev-poc  -o=jsonpath='{range .status.kafkaListeners[*]}{.type} {.bootstrapServers}{"\n"}{end}'
+oc get eventstreams <EVENT STREAMS INSTANCE NAME> -o=jsonpath='{range .status.kafkaListeners[*]}{.type} {.bootstrapServers}{"\n"}{end}'
 ----
 
 * spec.image
@@ -155,6 +155,8 @@ The image that we pushed previously
 ----
 oc apply -f resources/KafkaConnect.yaml
 ----
+
+. Create your Kafka topic by going into the EventStreams UI.
 
 . Create the KafkaConnector
 +
