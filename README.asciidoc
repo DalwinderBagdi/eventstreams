@@ -1,0 +1,169 @@
+= EventStreams to MQ Setup
+
+== Prerequisites (Setting up a sample MQ)
+
+. Install the MQ operator
++
+[source,bash]
+----
+oc apply -f resources/mq/mq-subscription.yaml
+----
+
+. Create a namespace for mq
++
+[source,bash]
+----
+oc new-project mq
+----
+
+. Add the config.mqsc
++
+[source,bash]
+----
+oc apply -f resources/mq/config-mqsc.yaml
+----
+
+. Create the mq
++
+[source,bash]
+----
+oc apply -f resources/mq/mq-instance.yaml
+----
+
+
+== Installing EventStreams
+
+. Install the operator
++
+[source,bash]
+----
+oc apply -f resources/subscription.yaml
+----
+
+. Create a namespace
++
+[source,bash]
+----
+oc new-project eventstreams
+----
+
+. Add the ibm-entitlement-key secret to the namespace
+
+. Create an eventstreams instance
++
+[source,bash]
+----
+oc apply -f resources/eventstreams-instance.yaml
+----
+
+. Make sure that eventstreams is ready before installing connectors
++
+[source,bash]
+----
+oc get eventstreams
+----
+
+== Installing connectors
+
+In previous versions we used KafkaConnectorS2I to install connectors. This method is being deprecated in later versions.
+In these instructions, I am using a custom image.
+
+Inside this repo, we have a kafkaconnect directory. This contains a simple Dockerfile that copies the jar inside the image.
+In this example, I have downloaded the latest mq connector jar.
+
+For simplest I have built the image locally and pushed it to the Openshift image registry.
+
+=== Adding the jars
+
+. Expose the image registry
++
+[source,bash]
+----
+oc patch configs.imageregistry.operator.openshift.io/cluster --patch
+'{"spec":{"defaultRoute":true}}' --type=merge
+----
++
+To verify the route has been exposed
++
+[source,bash]
+----
+oc get routes -n openshift-image-registry -o custom-columns=:.spec.host
+----
+
+.  Login to the IBM private registry
++
+[source,bash]
+----
+oc project eventstreams
+
+ibm_registry_username="$(oc get secrets ibm-entitlement-key -o json | jq -r '.data[".dockerconfigjson"]' | base64 -d | jq -r '.auths["cp.icr.io"].username')"
+
+ibm_registry_password="$(oc get secrets ibm-entitlement-key -o json | jq -r '.data[".dockerconfigjson"]' | base64 -d | jq -r '.auths["cp.icr.io"].password')"
+
+docker login cp.icr.io -u $ibm_registry_username -p $ibm_registry_password
+----
+
+. Login to your Openshift registry
++
+[source,bash]
+----
+HOST=$(oc get routes -n openshift-image-registry -o custom-columns=:.spec.host --no-headers)
+docker login $HOST -u $(oc whoami) -p $(oc whoami -t)
+----
+
+. Build and push the docker image
++
+[source,bash]
+----
+docker build -t $HOST/eventstreams/custom-kafka-connect:1.0 kafkaconnect
+docker push $HOST/eventstreams/custom-kafka-connect:1.0
+----
+
+. Check the image
++
+[source,bash]
+----
+oc get is -n eventstreams
+----
+
+**Now you have an image pushed to the openshift registry with your connectors. In this tutorial, we have added the mq connector.**
+
+=== Creating the KafkaConnect instance
+
+There is a sample KafkaConnect Instance in the `resources` folder. These instructions outline what need changing
+
+Note: *<EVENT STREAMS INSTANCE NAME>* will equal *dev-poc* if you followed this tutorial to create the ES instance.
+
+. Update resources/KafkaConnect.yaml with the correct values (for this sample we are not using security):
++
+* spec.bootstrapServers
++
+To find the type and address for the Kafka bootstrap route run the following command:
++
+[source,bash]
+----
+oc get eventstreams dev-poc  -o=jsonpath='{range .status.kafkaListeners[*]}{.type} {.bootstrapServers}{"\n"}{end}'
+----
+
+* spec.image
++
+The image that we pushed previously
+
+. Apply the KafkaConnect yaml
++
+[source,bash]
+----
+oc apply -f resources/KafkaConnect.yaml
+----
+
+. Create the KafkaConnector
++
+
+There is a sample KafkaConnector in the resources folder. Edit the sample to specify your mq connection details, then apply the yaml to the cluster
++
+[source,bash]
+----
+oc apply -f resources/MQKafkaConnector.yaml
+----
++
+Check the logs of the KafkaConnect pod. This will show if the connection is successful.

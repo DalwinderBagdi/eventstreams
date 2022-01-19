@@ -1,0 +1,21 @@
+apiVersion: eventstreams.ibm.com/v1alpha1
+kind: KafkaConnector
+metadata:
+  name: mq-no-security-connector
+  namespace: eventstreams
+  labels:
+    eventstreams.ibm.com/cluster: dev-poc-cluster
+spec:
+  class: com.ibm.eventstreams.connect.mqsource.MQSourceConnector
+  config:
+    mq.channel.name: KAFKASVRCONN
+    value.converter: org.apache.kafka.connect.storage.StringConverter
+    mq.user.name: ''
+    mq.password: ''
+    mq.queue.manager: QM1
+    mq.queue: TO.KAFKA
+    mq.record.builder: com.ibm.eventstreams.connect.mqsource.builders.DefaultRecordBuilder
+    topic: FROM.MQ
+    key.converter: org.apache.kafka.connect.storage.StringConverter
+    mq.connection.name.list: mq-no-security-ibm-mq.mq.svc(1414)
+  tasksMax: 1

@@ -1,0 +1,34 @@
+apiVersion: eventstreams.ibm.com/v1beta1
+kind: KafkaConnect
+metadata:
+  name: dev-poc-cluster
+  annotations:
+    eventstreams.ibm.com/use-connector-resources: "true"
+spec:
+  version: 2.6.2
+  replicas: 1
+  bootstrapServers: dev-poc-kafka-bootstrap.eventstreams.svc:9092
+  image: image-registry.openshift-image-registry.svc:5000/eventstreams/custom-kafka-connect:1.0
+  template:
+    pod:
+      imagePullSecrets: []
+      metadata:
+        annotations:
+          eventstreams.production.type: CloudPakForIntegrationNonProduction
+          productID: 2a79e49111f44ec3acd89608e56138f5
+          productName: IBM Event Streams for Non Production
+          productVersion: 10.2.1
+          productMetric: VIRTUAL_PROCESSOR_CORE
+          productChargedContainers: dev-poc-cluster-connect
+          cloudpakId: c8b82d189e7545f0892db9ef2731b90d
+          cloudpakName: IBM Cloud Pak for Integration
+          cloudpakVersion: 2020.4.1
+          productCloudpakRatio: '2:1'
+  config:
+    group.id: connect-cluster
+    offset.storage.topic: connect-cluster-offsets
+    config.storage.topic: connect-cluster-configs
+    status.storage.topic: connect-cluster-status
+    config.storage.replication.factor: 1
+    offset.storage.replication.factor: 1
+    status.storage.replication.factor: 1
